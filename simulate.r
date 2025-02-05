@@ -152,7 +152,8 @@ inner_join(
         geom_vline(xintercept=0, linetype="dashed")
 
 
-
+# Save result
+write.csv(gwas_res, file="gwas_res.csv")
 
 
 
@@ -261,7 +262,6 @@ group_by(dat, alcohol) %>% do({
         geom_vline(xintercept=0, linetype="dashed")
 
 
-write.csv(gwas_res, file="gwas_res.csv")
 write.csv(dat, file="individual_values.csv")
 
 
