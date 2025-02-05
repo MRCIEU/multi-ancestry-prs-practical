@@ -116,7 +116,6 @@ plot_effect_size <- function(gwas_res, i) {
         theme_minimal()
 }
 plot_effect_size(gwas_res, 1)
-plot_effect_size(gwas_res, which.min(gwas_res$Qpval))
 ```
 
 We can see that this SNP has slightly different effect estimates across populations, but the confidence intervals overlap quite substantially, suggesting that the true causal effect of the SNPs is relatively consistent across populations.
@@ -198,7 +197,6 @@ ggplot(effect_estimates, aes(x=beta, y=as.factor(alcohol))) +
 Now let's examine the polygenic risk scores across populations. In the `individual_values.csv` file, this is simulated data, and we have the true polygenic scores that explain all the heritability of the trait in the `true_score` column. Let's look at the distribution of the true scores across populations:
 
 ```{r}
-plot(1:10)
 ggplot(individual_values, aes(x=true_score, fill=pop)) +
     geom_density(alpha=0.5) +
     theme_minimal()
@@ -219,7 +217,7 @@ We also generated polygenic scores based on the GWAS results. Here, **GWAS hits 
 We can also evaluate the prediction accuracy of the PRS in each population. This is how to do it for the EUR population:
 
 ```{r}
-cor(dat$eur_score[dat$pop == "EUR"], dat$phen[dat$pop == "EUR"])^2
+cor(individual_values$eur_score[individual_values$pop == "EUR"], individual_values$phen[individual_values$pop == "EUR"])^2
 ```
 
 **QUESTION:** Which population has the highest prediction accuracy using the EUR PRS? Why do you think this is the case?
