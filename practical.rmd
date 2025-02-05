@@ -26,19 +26,31 @@ In addition, the GWAS results were used to calculate the polygenic risk scores (
 - Investigate the performance of the PRS across populations
 
 
-## 1. Simple GWAS hits comparisons
+## Setup
 
-Load the GWAS summary statistics
+Load relevant libraries
 
 ```{r}
-gwas_res <- read.csv("gwas_res.csv")
+library(ggplot2)
+library(dplyr)
 ```
 
-Have a look at the data
+Read in the relevant data. We are reading the files directly from github here but you can also download the files and read them locally if you prefer
+
+```{r}
+gwas_res <- read.csv(url("https://raw.githubusercontent.com/MRCIEU/multi-ancestry-prs-practical/refs/heads/main/gwas_res.csv"))
+individual_values <- read.csv(url("https://raw.githubusercontent.com/MRCIEU/multi-ancestry-prs-practical/refs/heads/main/individual_values.csv"))
+```
+
+## 1. Simple GWAS hits comparisons
+
+Have a look at the GWAS summary data
 
 ```{r}
 str(gwas_res)
 ```
+
+**QUESTION**: What are the rows and columns in the dataset and what do they represent?
 
 Let's see which SNPs are significant in Europeans
 
@@ -48,12 +60,18 @@ table(gwas_res$pval_EUR < 5e-8)
 
 **TASK**: How many SNPs are significant in each of the other 4 populations?
 
-```{r}
-
-```
-
 **QUESTION**: What factors might be driving the results that you have found?
 
+Let's look at the allele frequencies of the significant SNPs, for example comparing AFR and EUR:
+
+```{r}
+ggplot(gwas_res, aes(x=af_EUR, y=af_AFR)) +
+    geom_point() +
+    geom_abline() +
+    geom_density_2d_filled(alpha=0.5)
+```
+
+**QUESTION**: In which population are the SNPs more common? Does this match what you expected based on the p-value comparison?
 
 ## 2. Comparing effect sizes across populations
 
@@ -114,6 +132,11 @@ Let's load the data:
 dat <- read.csv("individual_values.csv")
 str(dat)
 ```
+
+**QUESTION**: Describe this dataset - what are the columns and rows, what do they represent?
+
+**QUESTION**: If this were real data (it's not in this case, it's all simulated!), would you handle it differently to the data in `gwas_res`? Why?
+
 
 Let's look at whether the heterogeneity effect by population still exists here:
 
@@ -184,4 +207,16 @@ The true polygenic scores have very similar distributions across populations, wi
 We also generated polygenic scores based on the GWAS results. Here, **GWAS hits were chosen based on the European discovery sample**. This means that instead of using all causal variants to generate the score, it was only generated from the 287 SNPs that were significant in the European GWAS.
 
 **TASK:** The estimated PRS is in the column `dat$eur_score`. Plot the distributions of the estimated PRS across populations. Do you see any differences?
+
+
+We can also evaluate the prediction accuracy of the PRS in each population. This is how to do it for the EUR population:
+
+```{r}
+cor(dat$eur_score[dat$pop == "EUR"], dat$phen[dat$pop == "EUR"])^2
+```
+
+**QUESTION:** Which population has the highest prediction accuracy using the EUR PRS? Why do you think this is the case?
+
+**QUESTION:** What could be done to improve the prediction accuracy in the other populations?
+
 
