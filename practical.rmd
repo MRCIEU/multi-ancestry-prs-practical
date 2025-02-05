@@ -116,6 +116,7 @@ plot_effect_size <- function(gwas_res, i) {
         theme_minimal()
 }
 plot_effect_size(gwas_res, 1)
+plot_effect_size(gwas_res, which.min(gwas_res$Qpval))
 ```
 
 We can see that this SNP has slightly different effect estimates across populations, but the confidence intervals overlap quite substantially, suggesting that the true causal effect of the SNPs is relatively consistent across populations.
@@ -130,8 +131,7 @@ The SNP that you identified as having strong evidence of heterogeneity is availa
 Let's load the data:
 
 ```{r}
-dat <- read.csv("individual_values.csv")
-str(dat)
+str(individual_values)
 ```
 
 **QUESTION**: Describe this dataset - what are the columns and rows, what do they represent?
@@ -145,7 +145,7 @@ Let's look at whether the heterogeneity effect by population still exists here:
 # For each population, fit a linear model
 effect_estimates <- lapply(c("EUR", "AFR", "EAS", "SAS", "AMR"), \(p) {
     # The linear model is estimating the effect of the SNP on phen in that subgroup
-    mod <- summary(lm(phen ~ rs58903867, data=subset(dat, pop == p)))
+    mod <- summary(lm(phen ~ rs58903867, data=subset(individual_values, pop == p)))
     # Save the effect estimate and standard error
     data.frame(pop=p, beta=mod$coefficients[2,1], se=mod$coefficients[2,2])
 }) %>% bind_rows()

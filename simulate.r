@@ -185,7 +185,7 @@ ggplot(scores, aes(x=score, fill=pop)) + geom_density(alpha=0.5)
 
 # Create PRS using only EUR discovery variants, but using the per-population effect estimates at the EUR discovery variants
 scores2 <- lapply(pops, \(pop) {
-    write.table(ss[[pop]] %>% filter(snp %in% eur_disc$snp) %>% select(snp, ea, bhat), "score.txt", quote=FALSE, row.names=FALSE, col.names=FALSE)
+    # write.table(ss[[pop]] %>% filter(snp %in% eur_disc$snp) %>% select(snp, ea, bhat), "score.txt", quote=FALSE, row.names=FALSE, col.names=FALSE)
     if(pop == "SAS") {
         glue("plink2 --bfile {bfile_dir}/{pop} --score score2.txt --out {pop}") %>% system()
     } else {
@@ -210,6 +210,7 @@ g <- lapply(pops, \(pop) {
 }) %>% bind_rows()
 
 # Generate phenotype that depends on the PRS + GxE interaction
+set.seed(1234)
 dat <- tibble(
     id=g$FID,
     true_score = scores$score,
