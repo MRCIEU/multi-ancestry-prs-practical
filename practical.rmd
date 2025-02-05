@@ -97,6 +97,7 @@ The `Qpval` column gives us a p-value for the Cochran's Q test statistic for eac
 
 ```{r}
 table(gwas_res$Qpval < 0.05 / nrow(gwas_res))
+min(gwas_res$Qpval)
 ```
 
 Let's examine the effect estimates for two SNPs, one that has a significant Qpval and one that doesn't. First the one that is not significant:
