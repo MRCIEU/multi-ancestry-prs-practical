@@ -163,7 +163,7 @@ ggplot(effect_estimates, aes(x=beta, y=pop)) +
 Instead of partitioning the samples by ancestry, let's now partition the samples by alcohol consumption instead to see if that is the relevant mechanism. First examine if alcohol consumption varies by population:
 
 ```{r}
-dat %>% group_by(pop) %>% summarise(mean_alcohol=mean(alcohol))
+individual_values %>% group_by(pop) %>% summarise(mean_alcohol=mean(alcohol))
 ```
 
 It looks like alcohol consumption is much lower in South Asians. Let's now examine the effect estimates for the SNP by alcohol consumption:
@@ -173,7 +173,7 @@ It looks like alcohol consumption is much lower in South Asians. Let's now exami
 # For each alcohol value, fit a linear model
 effect_estimates <- lapply(c(0, 1), \(p) {
     # The linear model is estimating the effect of the SNP on phen in that subgroup
-    mod <- summary(lm(phen ~ rs58903867, data=subset(dat, alcohol == p)))
+    mod <- summary(lm(phen ~ rs58903867, data=subset(individual_values, alcohol == p)))
     # Save the effect estimate and standard error
     data.frame(alcohol=p, beta=mod$coefficients[2,1], se=mod$coefficients[2,2])
 }) %>% bind_rows()
@@ -198,9 +198,15 @@ ggplot(effect_estimates, aes(x=beta, y=as.factor(alcohol))) +
 Now let's examine the polygenic risk scores across populations. In the `individual_values.csv` file, this is simulated data, and we have the true polygenic scores that explain all the heritability of the trait in the `true_score` column. Let's look at the distribution of the true scores across populations:
 
 ```{r}
-ggplot(dat, aes(x=true_score, fill=pop)) +
+plot(1:10)
+ggplot(individual_values, aes(x=true_score, fill=pop)) +
     geom_density(alpha=0.5) +
     theme_minimal()
+
+ggplot(individual_values, aes(x=eur_score, fill=pop)) +
+    geom_density(alpha=0.5) +
+    theme_minimal()
+
 ```
 
 The true polygenic scores have very similar distributions across populations, with some evidence that the mean score is slightly lower in East Asians compared to other populations.

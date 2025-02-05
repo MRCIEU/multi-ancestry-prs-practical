@@ -5,7 +5,7 @@ library(data.table)
 library(ggplot2)
 library(tidyr)
 
-set.seed(12345)
+set.seed(1234)
 
 # Plan
 # 1. Use 1000 genomes data to obtain allele frequencies for each ancestral group
@@ -46,12 +46,13 @@ rsids <- c(rsids, intrsid) %>% unique()
 map <- freqs[[1]] %>% select(snp=ID, chr="#CHROM", pos=pos, ea=ALT, oa=REF, af=ALT_FREQS) %>% filter(snp %in% rsids)
 
 # Generate GWAS parameters
-params <- map %>% generate_gwas_params(h2=0.5, S=-0.4, Pi=1)
+params <- map %>% generate_gwas_params(h2=0.5, S=-1, Pi=1)
 
+set.seed(12345)
 # Generate the GxE - the SNP has a smaller effect in the SAS population
-params$beta[params$snp == intrsid] <- 0.035
+params$beta[params$snp == intrsid] <- 0.045
 params2 <- params
-params2$beta[params2$snp == intrsid] <- 0.035 * 0.1
+params2$beta[params2$snp == intrsid] <- 0.045 * 0.01
 temp <- subset(freqs[["SAS"]], ID %in% map$snp) %>% select(snp=ID, af=ALT_FREQS)
 params2 <- params2 %>% select(-c(af))
 params2 <- inner_join(params2, temp, by="snp")
@@ -139,7 +140,8 @@ for(i in 1:nrow(gwas_res)) {
 # Check that the Qpval is significant at the GxE SNP
 table(gwas_res$Qpval < 0.05/nrow(gwas_res))
 het <- gwas_res[gwas_res$Qpval < 0.05/nrow(gwas_res), ]
-het
+subset(gwas_res, snp == "rs58903867") %>% str
+het %>% str
 
 # Make long format and forest plot
 inner_join(
@@ -184,12 +186,15 @@ group_by(scores, pop) %>% summarise(m=mean(score), s=sd(score))
 ggplot(scores, aes(x=score, fill=pop)) + geom_density(alpha=0.5)
 
 # Create PRS using only EUR discovery variants, but using the per-population effect estimates at the EUR discovery variants
+write.table(params %>% filter(snp %in% eur_disc$snp) %>% select(snp, ea, beta), "score_eur.txt", quote=FALSE, row.names=FALSE, col.names=FALSE)
+write.table(params2 %>% filter(snp %in% eur_disc$snp) %>% select(snp, ea, beta), "score2_eur.txt", quote=FALSE, row.names=FALSE, col.names=FALSE)
+
 scores2 <- lapply(pops, \(pop) {
-    # write.table(ss[[pop]] %>% filter(snp %in% eur_disc$snp) %>% select(snp, ea, bhat), "score.txt", quote=FALSE, row.names=FALSE, col.names=FALSE)
+    write.table(ss[[pop]] %>% filter(snp %in% eur_disc$snp) %>% select(snp, ea, bhat), "score_eur.txt", quote=FALSE, row.names=FALSE, col.names=FALSE)
     if(pop == "SAS") {
-        glue("plink2 --bfile {bfile_dir}/{pop} --score score2.txt --out {pop}") %>% system()
+        glue("plink2 --bfile {bfile_dir}/{pop} --score score_eur.txt --out {pop}") %>% system()
     } else {
-        glue("plink2 --bfile {bfile_dir}/{pop} --score score.txt --out {pop}") %>% system()
+        glue("plink2 --bfile {bfile_dir}/{pop} --score score_eur.txt --out {pop}") %>% system()
     }
     score <- fread(paste0(pop, ".sscore"))
     score %>% rename(score=SCORE1_AVG) %>% mutate(score=score * 1000, pop=pop, method="eur_disc")
