@@ -1,0 +1,187 @@
+---
+title: Multi-ancestry PRS practical
+author: Gibran Hemani
+---
+
+## Background
+
+A GWAS has been conducted for an adiposity-related trait in 5 populations:
+
+- European (EUR), n = 100,000
+- African (AFR), n = 30,000
+- East Asian (EAS), n = 30,000
+- South Asian (SAS), n = 30,000
+- Admixed American (AMR), n = 30,000
+
+As you can see the sample sizes are different across populations. The file `gwas_res.csv` has a subset of the results from this GWAS, retaining only the results that were GWAS significant (p < 5e-8) in the EUR population.
+
+In addition, the GWAS results were used to calculate the polygenic risk scores (PRS) in a small independent sample from each population. The file `individual_values.csv` contains the PRS and other phenotypes for each individual in each population.
+
+
+## Objectives
+
+- Understand the two datasets
+- Look for differences in the effect sizes across populations
+- Examine why differences in effect sizes might arise
+- Investigate the performance of the PRS across populations
+
+
+## 1. Simple GWAS hits comparisons
+
+Load the GWAS summary statistics
+
+```{r}
+gwas_res <- read.csv("gwas_res.csv")
+```
+
+Have a look at the data
+
+```{r}
+str(gwas_res)
+```
+
+Let's see which SNPs are significant in Europeans
+
+```{r}
+table(gwas_res$pval_EUR < 5e-8)
+```
+
+**TASK**: How many SNPs are significant in each of the other 4 populations?
+
+```{r}
+
+```
+
+**QUESTION**: What factors might be driving the results that you have found?
+
+
+## 2. Comparing effect sizes across populations
+
+Let's compare the effect sizes now. Subset the data to only include the effect estimates, then plot them against each other:
+
+```{r}
+subset(gwas_res, select = c("bhat_EUR", "bhat_AFR", "bhat_EAS", "bhat_SAS", "bhat_AMR")) |> pairs()
+```
+
+**QUESTION**: What do you observe from the plot? Does this match what you expected based on the p-value comparison?
+
+## 3. Accounting for differences in power
+
+Instead of looking at p-values to determine if the associations are consistent across populations, we could examine whether the effects are consistent. This can be achieved using a Cochran's Q heterogeneity test.
+
+$$
+Q = \sum_{i=1}^k w_i (\hat{\beta}_i - \hat{\beta})^2
+$$
+
+where $w_i = 1 / \text{SE}(\hat{\beta}_i)^2$ and $\hat{\beta}$ is the overall effect estimate. Essentially, this test asks if the confidence intervals of the effect estimates overlap. If they overlap, we would conclude that the effects are statistically consistent across populations.
+
+The `Qpval` column gives us a p-value for the Cochran's Q test statistic for each SNP. Are any of these significant for heterogeneity after multiple testing?
+
+```{r}
+table(gwas_res$Qpval < 0.05 / nrow(gwas_res))
+```
+
+Let's examine the effect estimates for two SNPs, one that has a significant Qpval and one that doesn't. First the one that is not significant:
+
+```{r}
+plot_effect_size <- function(gwas_res, i) {
+    dat <- data.frame(
+        population = c("EUR", "AFR", "EAS", "SAS", "AMR"),
+        beta = c(gwas_res$bhat_EUR[i], gwas_res$bhat_AFR[i], gwas_res$bhat_EAS[i], gwas_res$bhat_SAS[i], gwas_res$bhat_AMR[i]),
+        se = c(gwas_res$se_EUR[i], gwas_res$se_AFR[i], gwas_res$se_EAS[i], gwas_res$se_SAS[i], gwas_res$se_AMR[i])
+    )
+    ggplot(dat, aes(x=beta, y=population)) +
+        geom_point(aes(size=1/se)) +
+        geom_errorbarh(aes(xmin=beta - 1.96 * se, xmax=beta + 1.96 * se)) +
+        geom_vline(xintercept=0, linetype="dashed") +
+        theme_minimal()
+}
+plot_effect_size(gwas_res, 1)
+```
+
+We can see that this SNP has slightly different effect estimates across populations, but the confidence intervals overlap quite substantially, suggesting that the true causal effect of the SNPs is relatively consistent across populations.
+
+**TASK**: Use the `plot_effect_size` function above to now plot the effect estimates for the SNP that has strong evidence of heterogeneity. Which population appears to be driving the heterogeneity?
+
+
+## 4. Examining why differences in effect sizes might arise
+
+The SNP that you identified as having strong evidence of heterogeneity is available in another dataset, along with the adiposity phenotype, and a potential interacting variable (`alcohol` intake). Could a genotype x environment interaction explain the result, where the environmental variable here is alcohol consumption?
+
+Let's load the data:
+
+```{r}
+dat <- read.csv("individual_values.csv")
+str(dat)
+```
+
+Let's look at whether the heterogeneity effect by population still exists here:
+
+```{r}
+# For each population, fit a linear model
+effect_estimates <- lapply(c("EUR", "AFR", "EAS", "SAS", "AMR"), \(p) {
+    # The linear model is estimating the effect of the SNP on phen in that subgroup
+    mod <- summary(lm(phen ~ rs58903867, data=subset(dat, pop == p)))
+    # Save the effect estimate and standard error
+    data.frame(pop=p, beta=mod$coefficients[2,1], se=mod$coefficients[2,2])
+}) %>% bind_rows()
+
+# Plot the effect estimates in a forest plot
+ggplot(effect_estimates, aes(x=beta, y=pop)) +
+    geom_point(aes(size=1/se)) +
+    geom_errorbarh(aes(xmin=beta - 1.96 * se, xmax=beta + 1.96 * se)) +
+    geom_vline(xintercept=0, linetype="dashed") +
+    theme_minimal()
+```
+
+**QUESTION**: Does this replicate the evidence for heterogeneity that you observed in the GWAS summary data?
+
+Instead of partitioning the samples by ancestry, let's now partition the samples by alcohol consumption instead to see if that is the relevant mechanism. First examine if alcohol consumption varies by population:
+
+```{r}
+dat %>% group_by(pop) %>% summarise(mean_alcohol=mean(alcohol))
+```
+
+It looks like alcohol consumption is much lower in South Asians. Let's now examine the effect estimates for the SNP by alcohol consumption:
+
+
+```{r}
+# For each alcohol value, fit a linear model
+effect_estimates <- lapply(c(0, 1), \(p) {
+    # The linear model is estimating the effect of the SNP on phen in that subgroup
+    mod <- summary(lm(phen ~ rs58903867, data=subset(dat, alcohol == p)))
+    # Save the effect estimate and standard error
+    data.frame(alcohol=p, beta=mod$coefficients[2,1], se=mod$coefficients[2,2])
+}) %>% bind_rows()
+
+# Plot the effect estimates in a forest plot
+ggplot(effect_estimates, aes(x=beta, y=as.factor(alcohol))) +
+    geom_point(aes(size=1/se)) +
+    geom_errorbarh(aes(xmin=beta - 1.96 * se, xmax=beta + 1.96 * se)) +
+    geom_vline(xintercept=0, linetype="dashed") +
+    theme_minimal()
+```
+
+
+**QUESTION**: Propose a mechanism that would explain the results you have seen.
+
+
+**QUESTION**: How could the linear model be improved to reduce the possibility of bias?
+
+
+## 5. Investigating the performance of the PRS across populations
+
+Now let's examine the polygenic risk scores across populations. In the `individual_values.csv` file, this is simulated data, and we have the true polygenic scores that explain all the heritability of the trait in the `true_score` column. Let's look at the distribution of the true scores across populations:
+
+```{r}
+ggplot(dat, aes(x=true_score, fill=pop)) +
+    geom_density(alpha=0.5) +
+    theme_minimal()
+```
+
+The true polygenic scores have very similar distributions across populations, with some evidence that the mean score is slightly lower in East Asians compared to other populations.
+
+We also generated polygenic scores based on the GWAS results. Here, **GWAS hits were chosen based on the European discovery sample**. This means that instead of using all causal variants to generate the score, it was only generated from the 287 SNPs that were significant in the European GWAS.
+
+**TASK:** The estimated PRS is in the column `dat$eur_score`. Plot the distributions of the estimated PRS across populations. Do you see any differences?
+
