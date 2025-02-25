@@ -13,9 +13,9 @@ A GWAS has been conducted for an adiposity-related trait in 5 populations:
 - South Asian (SAS), n = 30,000
 - Admixed American (AMR), n = 30,000
 
-As you can see the sample sizes are different across populations. The file `gwas_res.csv` has a subset of the results from this GWAS, retaining only the results that were GWAS significant (p < 5e-8) in the EUR population.
+As you can see the sample sizes are different across populations. The file `gwas_res.csv` has a subset of the results from this GWAS, retaining only the results that were GWAS significant (p < 5e-8) in the EUR population. Here, the EUR population is the **discovery** population. The SNPs identified as GWAS significant in the discovery population are known as the **discovery SNPs**.
 
-In addition, the GWAS results were used to calculate the polygenic risk scores (PRS) in a small independent sample from each population. The file `individual_values.csv` contains the PRS and other phenotypes for each individual in each population.
+In addition, the **discovery SNPs** were used to calculate the polygenic risk scores (PRS) in a small independent sample from each population. The file `individual_values.csv` contains the PRS and other phenotypes for each individual in each population.
 
 
 ## Objectives
@@ -50,7 +50,7 @@ Have a look at the GWAS summary data
 str(gwas_res)
 ```
 
-**QUESTION**: What are the rows and columns in the dataset and what do they represent?
+**QUESTION 1**: What are the rows and columns in the dataset and what do they represent?
 
 Let's see which SNPs are significant in Europeans
 
@@ -58,9 +58,9 @@ Let's see which SNPs are significant in Europeans
 table(gwas_res$pval_EUR < 5e-8)
 ```
 
-**TASK**: How many SNPs are significant in each of the other 4 populations?
+**QUESTION 2**: How many SNPs are significant in each of the other 4 populations?
 
-**QUESTION**: What factors might be driving the results that you have found?
+**QUESTION 3**: What factors might be driving the results that you have found?
 
 Let's look at the allele frequencies of the significant SNPs, for example comparing AFR and EUR:
 
@@ -71,7 +71,7 @@ ggplot(gwas_res, aes(x=af_EUR, y=af_AFR)) +
     geom_density_2d_filled(alpha=0.5)
 ```
 
-**QUESTION**: In which population are the SNPs more common? Does this match what you expected based on the p-value comparison?
+**QUESTION 4**: In which population are the SNPs more common? Does this match what you expected based on the p-value comparison?
 
 ## 2. Comparing effect sizes across populations
 
@@ -81,7 +81,7 @@ Let's compare the effect sizes now. Subset the data to only include the effect e
 subset(gwas_res, select = c("bhat_EUR", "bhat_AFR", "bhat_EAS", "bhat_SAS", "bhat_AMR")) |> pairs()
 ```
 
-**QUESTION**: What do you observe from the plot? Does this match what you expected based on the p-value comparison?
+**QUESTION 5**: What do you observe from the plot? Does this match what you expected based on the p-value comparison?
 
 ## 3. Accounting for differences in power
 
@@ -93,7 +93,7 @@ $$
 
 where $w_i = 1 / \text{SE}(\hat{\beta}_i)^2$ and $\hat{\beta}$ is the overall effect estimate. Essentially, this test asks if the confidence intervals of the effect estimates overlap. If they overlap, we would conclude that the effects are statistically consistent across populations.
 
-The `Qpval` column gives us a p-value for the Cochran's Q test statistic for each SNP. Are any of these significant for heterogeneity after multiple testing?
+The `Qpval` column gives us a p-value for the Cochran's Q test statistic for each SNP. We can examine if any of these are significant for heterogeneity after multiple testing.
 
 ```{r}
 table(gwas_res$Qpval < 0.05 / nrow(gwas_res))
@@ -120,7 +120,7 @@ plot_effect_size(gwas_res, 1)
 
 We can see that this SNP has slightly different effect estimates across populations, but the confidence intervals overlap quite substantially, suggesting that the true causal effect of the SNPs is relatively consistent across populations.
 
-**TASK**: Use the `plot_effect_size` function above to now plot the effect estimates for the SNP that has strong evidence of heterogeneity. Which population appears to be driving the heterogeneity?
+**QUESTION 6**: Use the `plot_effect_size` function above to now plot the effect estimates for the SNP that has strong evidence of heterogeneity. Which population appears to be driving the heterogeneity?
 
 
 ## 4. Examining why differences in effect sizes might arise
@@ -133,9 +133,9 @@ Let's load the data:
 str(individual_values)
 ```
 
-**QUESTION**: Describe this dataset - what are the columns and rows, what do they represent?
+**QUESTION 7**: Describe this dataset - what are the columns and rows, what do they represent?
 
-**QUESTION**: If this were real data (it's not in this case, it's all simulated!), would you handle it differently to the data in `gwas_res`? Why?
+**QUESTION 8**: If this were real data (it's not in this case, it's all simulated!), would you handle it differently to the data in `gwas_res`? Why?
 
 
 Let's look at whether the heterogeneity effect by population still exists here:
@@ -157,7 +157,7 @@ ggplot(effect_estimates, aes(x=beta, y=pop)) +
     theme_minimal()
 ```
 
-**QUESTION**: Does this replicate the evidence for heterogeneity that you observed in the GWAS summary data?
+**QUESTION 9**: Does this replicate the evidence for heterogeneity that you observed in the GWAS summary data?
 
 Instead of partitioning the samples by ancestry, let's now partition the samples by alcohol consumption instead to see if that is the relevant mechanism. First examine if alcohol consumption varies by population:
 
@@ -186,10 +186,10 @@ ggplot(effect_estimates, aes(x=beta, y=as.factor(alcohol))) +
 ```
 
 
-**QUESTION**: Propose a mechanism that would explain the results you have seen.
+**QUESTION 10**: Propose a mechanism that would explain the results you have seen.
 
 
-**QUESTION**: How could the linear model be improved to reduce the possibility of bias?
+**QUESTION 11**: How could the linear model be improved to reduce the possibility of bias?
 
 
 ## 5. Investigating the performance of the PRS across populations
@@ -200,18 +200,13 @@ Now let's examine the polygenic risk scores across populations. In the `individu
 ggplot(individual_values, aes(x=true_score, fill=pop)) +
     geom_density(alpha=0.5) +
     theme_minimal()
-
-ggplot(individual_values, aes(x=eur_score, fill=pop)) +
-    geom_density(alpha=0.5) +
-    theme_minimal()
-
 ```
 
 The true polygenic scores have very similar distributions across populations, with some evidence that the mean score is slightly lower in East Asians compared to other populations.
 
 We also generated polygenic scores based on the GWAS results. Here, **GWAS hits were chosen based on the European discovery sample**. This means that instead of using all causal variants to generate the score, it was only generated from the 287 SNPs that were significant in the European GWAS.
 
-**TASK:** The estimated PRS is in the column `dat$eur_score`. Plot the distributions of the estimated PRS across populations. Do you see any differences?
+**QUESTION 12** The estimated PRS is in the column `dat$eur_score`. Plot the distributions of the estimated PRS across populations. Do you see any differences?
 
 
 We can also evaluate the prediction accuracy of the PRS in each population. This is how to do it for the EUR population:
@@ -220,8 +215,8 @@ We can also evaluate the prediction accuracy of the PRS in each population. This
 cor(individual_values$eur_score[individual_values$pop == "EUR"], individual_values$phen[individual_values$pop == "EUR"])^2
 ```
 
-**QUESTION:** Which population has the highest prediction accuracy using the EUR PRS? Why do you think this is the case?
+**QUESTION 13** Which population has the highest prediction accuracy using the EUR PRS? Why do you think this is the case?
 
-**QUESTION:** What could be done to improve the prediction accuracy in the other populations?
+**QUESTION 14** What could be done to improve the prediction accuracy in the other populations?
 
 
